@@ -1,0 +1,212 @@
+#!/usr/bin/env bash
+#
+# wt — create git worktrees with local (gitignored) files and deps in place.
+#
+#   wt new <name> [branch]   worktree from origin/<default>, copy env files, install deps
+#   wt ls                    list worktrees (branch first, then path)
+#   wt rm [name]             remove a worktree + delete its branch (interactive picker if name omitted)
+#   wt open [name]           open a worktree in VS Code (interactive picker if name omitted)
+#   wt path <name>           print the worktree path
+#
+# Worktrees live in  ../<repo>-wt/<name>.  Branch defaults to  feature/<name>.
+#
+#   WT_ENV_FILES=".env .env.local"   files to copy from the main checkout
+#   WT_NO_INSTALL=1                  skip dependency install
+#   WT_NO_CODE=1                     don't open VS Code afterwards
+#
+set -euo pipefail
+
+usage() { sed -n '3,16p' "$0" | sed 's/^#\{1,2\} \{0,1\}//'; }
+
+# Resolve the MAIN checkout, even when invoked from inside a linked worktree.
+if ! common=$(git rev-parse --git-common-dir 2>/dev/null); then
+  echo "wt: not inside a git repository" >&2
+  exit 1
+fi
+case "$common" in /*) ;; *) common="$PWD/$common" ;; esac
+main=$(cd "$(dirname "$common")" && pwd)
+
+repo=$(basename "$main")
+base="$(dirname "$main")/${repo}-wt"
+
+default_branch() {
+  local d
+  d=$(git -C "$main" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null) || d=""
+  echo "${d#origin/}"
+}
+
+install_deps() {
+  local dir=$1
+  if [ -n "${WT_NO_INSTALL:-}" ]; then
+    echo "wt: skipping install"
+  elif [ -f "$dir/pnpm-lock.yaml" ]; then
+    (cd "$dir" && pnpm install)
+  elif [ -f "$dir/yarn.lock" ]; then
+    (cd "$dir" && yarn install --frozen-lockfile)
+  elif [ -f "$dir/bun.lockb" ]; then
+    (cd "$dir" && bun install)
+  elif [ -f "$dir/package-lock.json" ]; then
+    (cd "$dir" && npm ci)
+  else
+    echo "wt: no lockfile found, skipping install"
+  fi
+}
+
+have_fzf() { command -v fzf >/dev/null 2>&1; }
+
+# Emits one "<path>\t<branch>" line per worktree, parsed from porcelain blocks.
+worktree_entries() {
+  git -C "$main" worktree list --porcelain | awk '
+    /^worktree / { path=$0; sub(/^worktree /, "", path) }
+    /^branch /   { b=$0; sub(/^branch /, "", b); sub("refs/heads/", "", b) }
+    /^detached/  { b="(detached)" }
+    /^$/         { if (path != "") print path "\t" b; path=""; b="" }
+    END          { if (path != "") print path "\t" b }
+  '
+}
+
+# Interactively choose a worktree path. Pass "include-main" to allow picking the main checkout.
+# Only the branch is shown (plus a "(main)" marker) to keep the picker readable.
+pick_worktree() {
+  local prompt=$1 include_main=${2:-} entries labeled choice dir
+  entries=$(worktree_entries)
+  if [ "$include_main" != "include-main" ]; then
+    entries=$(printf '%s\n' "$entries" | awk -F'\t' -v main="$main" '$1 != main')
+  fi
+  if [ -z "$entries" ]; then
+    echo "wt: no worktrees to $prompt" >&2
+    return 1
+  fi
+  labeled=$(printf '%s\n' "$entries" | awk -F'\t' -v main="$main" '
+    { label = ($1 == main) ? $2 " (main)" : $2; print $1 "\t" label }
+  ')
+  if have_fzf; then
+    choice=$(printf '%s\n' "$labeled" \
+      | fzf --prompt="wt $prompt> " --delimiter='\t' --with-nth=2 --height='~40%' --reverse) || return 1
+    dir=$(printf '%s\n' "$choice" | cut -f1)
+  else
+    echo "Select a worktree to $prompt:" >&2
+    local -a paths
+    local i=0 p label sel
+    while IFS=$'\t' read -r p label; do
+      i=$((i + 1))
+      paths[i]=$p
+      printf '  %d) %s\n' "$i" "$label" >&2
+    done <<< "$labeled"
+    read -r -p '#? ' sel
+    dir=${paths[$sel]:-}
+  fi
+  if [ -z "$dir" ] || [ ! -e "$dir" ]; then
+    echo "wt: invalid selection" >&2
+    return 1
+  fi
+  printf '%s\n' "$dir"
+}
+
+cmd=${1:-}
+if [ $# -gt 0 ]; then shift; fi
+
+case "$cmd" in
+new)
+  name=${1:-}
+  if [ -z "$name" ]; then
+    usage
+    exit 1
+  fi
+  branch=${2:-feature/$name}
+  dir="$base/$name"
+  if [ -e "$dir" ]; then
+    echo "wt: $dir already exists" >&2
+    exit 1
+  fi
+
+  def=$(default_branch)
+  def=${def:-master}
+
+  echo "wt: fetching origin..."
+  if ! git -C "$main" fetch origin --quiet; then
+    echo "wt: WARNING fetch failed — branching from your local origin/$def" >&2
+  fi
+
+  if ! git -C "$main" rev-parse --verify --quiet "origin/$def" >/dev/null; then
+    echo "wt: no ref origin/$def — is the remote set up?" >&2
+    exit 1
+  fi
+
+  git -C "$main" worktree add "$dir" -b "$branch" "origin/$def"
+
+  for f in ${WT_ENV_FILES:-.env .env.local}; do
+    if [ -f "$main/$f" ]; then
+      cp "$main/$f" "$dir/$f"
+      echo "wt: copied $f"
+    fi
+  done
+
+  install_deps "$dir"
+
+  echo
+  echo "wt: $branch  ->  $dir"
+  if [ -z "${WT_NO_CODE:-}" ] && command -v code >/dev/null 2>&1; then
+    code "$dir"
+  fi
+  ;;
+
+rm)
+  name=${1:-}
+  if [ -z "$name" ]; then
+    dir=$(pick_worktree "remove") || exit 1
+    name=$(basename "$dir")
+  else
+    dir="$base/$name"
+  fi
+  branch=$(git -C "$dir" branch --show-current 2>/dev/null) || branch=""
+  git -C "$main" worktree remove "$dir"
+  if [ -n "$branch" ]; then git -C "$main" branch -d "$branch"; fi
+  git -C "$main" worktree prune
+  echo "wt: removed $name"
+  ;;
+
+ls)
+  worktree_entries | awk -F'\t' '
+    { path[NR] = $1; branch[NR] = $2; if (length($2) > w) w = length($2) }
+    END {
+      w = (w > 6 ? w : 6)
+      printf "%-*s  %s\n", w, "BRANCH", "PATH"
+      for (i = 1; i <= NR; i++) printf "%-*s  %s\n", w, branch[i], path[i]
+    }
+  '
+  ;;
+
+open)
+  name=${1:-}
+  if [ -z "$name" ]; then
+    dir=$(pick_worktree "open" include-main) || exit 1
+  else
+    dir="$base/$name"
+    if [ ! -e "$dir" ]; then
+      echo "wt: $dir does not exist" >&2
+      exit 1
+    fi
+  fi
+  if ! command -v code >/dev/null 2>&1; then
+    echo "wt: 'code' not found in PATH" >&2
+    exit 1
+  fi
+  echo "wt: opening $dir"
+  code "$dir"
+  ;;
+
+path)
+  echo "$base/${1:?name required}"
+  ;;
+
+"" | -h | --help | help)
+  usage
+  ;;
+
+*)
+  echo "wt: unknown command '$cmd'" >&2
+  usage
+  exit 1
+  ;;
+esac
