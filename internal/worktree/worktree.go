@@ -177,3 +177,30 @@ func Remove(cfg config.Config, mainDir, name string, w io.Writer) error {
 	fmt.Fprintf(w, "wt: removed %s\n", name)
 	return nil
 }
+
+// Open opens the worktree named name in the configured editor — or, if name
+// is empty, prompts the user to pick one via an interactive picker (the main
+// checkout is offered as an option, labeled "(main)"). Status messages are
+// written to w.
+func Open(cfg config.Config, mainDir, name string, w io.Writer) error {
+	var dir string
+	if name == "" {
+		entries, err := git.WorktreeList(mainDir)
+		if err != nil {
+			return err
+		}
+		target, err := picker.SelectWorktree("open", entries, mainDir)
+		if err != nil {
+			return err
+		}
+		dir = target.Path
+	} else {
+		dir = filepath.Join(Dir(cfg, mainDir), name)
+		if _, err := os.Stat(dir); err != nil {
+			return fmt.Errorf("%s does not exist", dir)
+		}
+	}
+
+	fmt.Fprintf(w, "wt: opening %s\n", dir)
+	return editor.Open(cfg.Editor, dir)
+}

@@ -20,6 +20,7 @@ func main() {
 			newCommand(),
 			lsCommand(),
 			rmCommand(),
+			openCommand(),
 		},
 	}
 
@@ -90,6 +91,29 @@ func rmCommand() *cli.Command {
 			}
 
 			return worktree.Remove(cfg, mainDir, name, os.Stdout)
+		},
+	}
+}
+
+func openCommand() *cli.Command {
+	return &cli.Command{
+		Name:      "open",
+		Usage:     "open a worktree in the configured editor (interactive picker if name omitted)",
+		ArgsUsage: "[name]",
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			name := cmd.Args().Get(0)
+
+			mainDir, err := git.MainDir()
+			if err != nil {
+				return err
+			}
+
+			cfg, err := config.Load(mainDir)
+			if err != nil {
+				return err
+			}
+
+			return worktree.Open(cfg, mainDir, name, os.Stdout)
 		},
 	}
 }
