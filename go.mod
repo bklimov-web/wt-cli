@@ -1,4 +1,4 @@
-module wt
+module github.com/bklimov-web/wt-cli
 
 go 1.25.5
 

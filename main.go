@@ -7,9 +7,9 @@ import (
 
 	"github.com/urfave/cli/v3"
 
-	"wt/internal/config"
-	"wt/internal/git"
-	"wt/internal/worktree"
+	"github.com/bklimov-web/wt-cli/internal/config"
+	"github.com/bklimov-web/wt-cli/internal/git"
+	"github.com/bklimov-web/wt-cli/internal/worktree"
 )
 
 func main() {

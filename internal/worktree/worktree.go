@@ -11,11 +11,11 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"wt/internal/config"
-	"wt/internal/editor"
-	"wt/internal/git"
-	"wt/internal/installer"
-	"wt/internal/picker"
+	"github.com/bklimov-web/wt-cli/internal/config"
+	"github.com/bklimov-web/wt-cli/internal/editor"
+	"github.com/bklimov-web/wt-cli/internal/git"
+	"github.com/bklimov-web/wt-cli/internal/installer"
+	"github.com/bklimov-web/wt-cli/internal/picker"
 )
 
 // Dir resolves the base directory (parent of all worktrees for this repo)

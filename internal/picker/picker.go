@@ -8,7 +8,7 @@ import (
 
 	"github.com/charmbracelet/huh"
 
-	"wt/internal/git"
+	"github.com/bklimov-web/wt-cli/internal/git"
 )
 
 // SelectWorktree prompts the user to choose one of entries, showing each
