@@ -1,0 +1,43 @@
+version: 2
+
+project_name: wt
+
+builds:
+  - main: .
+    binary: wt
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - formats: [tar.gz]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Os }}_{{ .Arch }}
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+homebrew_casks:
+  - name: wt
+    repository:
+      owner: bklimov-web
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Casks
+    homepage: "https://github.com/bklimov-web/wt-cli"
+    description: "Create git worktrees with local files and deps in place"
+    license: "MIT"
+    binaries:
+      - wt
