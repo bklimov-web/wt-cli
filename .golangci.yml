@@ -14,6 +14,14 @@ linters:
     - unconvert
     - unparam
     - revive
+  settings:
+    errcheck:
+      # Status output to an io.Writer (usually os.Stdout) — an error here
+      # isn't actionable and checking it would just be noise.
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
 
 formatters:
   enable:

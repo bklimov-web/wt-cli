@@ -1,3 +1,4 @@
+// Command wt creates git worktrees with local files and deps in place.
 package main
 
 import (
@@ -50,7 +51,7 @@ func newCommand() *cli.Command {
 		Name:      "new",
 		Usage:     "create a worktree from origin's default branch",
 		ArgsUsage: "<name> [branch]",
-		Action: func(ctx context.Context, cmd *cli.Command) error {
+		Action: func(_ context.Context, cmd *cli.Command) error {
 			name := cmd.Args().Get(0)
 			branch := cmd.Args().Get(1)
 			if name == "" {
@@ -75,7 +76,7 @@ func lsCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "ls",
 		Usage: "list worktrees (branch first, then path)",
-		Action: func(ctx context.Context, cmd *cli.Command) error {
+		Action: func(_ context.Context, _ *cli.Command) error {
 			mainDir, err := git.MainDir()
 			if err != nil {
 				return err
@@ -90,7 +91,7 @@ func rmCommand() *cli.Command {
 		Name:      "rm",
 		Usage:     "remove a worktree and delete its branch (interactive picker if name omitted)",
 		ArgsUsage: "[name]",
-		Action: func(ctx context.Context, cmd *cli.Command) error {
+		Action: func(_ context.Context, cmd *cli.Command) error {
 			name := cmd.Args().Get(0)
 
 			mainDir, cfg, err := setup()
@@ -108,7 +109,7 @@ func openCommand() *cli.Command {
 		Name:      "open",
 		Usage:     "open a worktree in the configured editor (interactive picker if name omitted)",
 		ArgsUsage: "[name]",
-		Action: func(ctx context.Context, cmd *cli.Command) error {
+		Action: func(_ context.Context, cmd *cli.Command) error {
 			name := cmd.Args().Get(0)
 
 			mainDir, cfg, err := setup()
@@ -126,7 +127,7 @@ func pathCommand() *cli.Command {
 		Name:      "path",
 		Usage:     "print the worktree path (interactive picker if name omitted)",
 		ArgsUsage: "[name]",
-		Action: func(ctx context.Context, cmd *cli.Command) error {
+		Action: func(_ context.Context, cmd *cli.Command) error {
 			name := cmd.Args().Get(0)
 
 			mainDir, cfg, err := setup()
