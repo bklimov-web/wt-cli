@@ -19,6 +19,7 @@ func main() {
 		Commands: []*cli.Command{
 			newCommand(),
 			lsCommand(),
+			rmCommand(),
 		},
 	}
 
@@ -66,6 +67,29 @@ func lsCommand() *cli.Command {
 				return err
 			}
 			return worktree.List(mainDir, os.Stdout)
+		},
+	}
+}
+
+func rmCommand() *cli.Command {
+	return &cli.Command{
+		Name:      "rm",
+		Usage:     "remove a worktree and delete its branch (interactive picker if name omitted)",
+		ArgsUsage: "[name]",
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			name := cmd.Args().Get(0)
+
+			mainDir, err := git.MainDir()
+			if err != nil {
+				return err
+			}
+
+			cfg, err := config.Load(mainDir)
+			if err != nil {
+				return err
+			}
+
+			return worktree.Remove(cfg, mainDir, name, os.Stdout)
 		},
 	}
 }

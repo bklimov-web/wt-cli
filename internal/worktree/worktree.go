@@ -15,6 +15,7 @@ import (
 	"wt/internal/editor"
 	"wt/internal/git"
 	"wt/internal/installer"
+	"wt/internal/picker"
 )
 
 // Dir resolves the base directory (parent of all worktrees for this repo)
@@ -112,4 +113,67 @@ func List(mainDir string, w io.Writer) error {
 		fmt.Fprintf(tw, "%s\t%s\n", e.Branch, e.Path)
 	}
 	return tw.Flush()
+}
+
+// Remove deletes the worktree named name — or, if name is empty, prompts
+// the user to pick one via an interactive picker (the main checkout is
+// never offered) — asks for confirmation, then removes the worktree and
+// deletes its branch. Status messages are written to w.
+func Remove(cfg config.Config, mainDir, name string, w io.Writer) error {
+	entries, err := git.WorktreeList(mainDir)
+	if err != nil {
+		return err
+	}
+
+	var target git.Worktree
+	if name == "" {
+		var candidates []git.Worktree
+		for _, e := range entries {
+			if e.Path != mainDir {
+				candidates = append(candidates, e)
+			}
+		}
+		target, err = picker.SelectWorktree("remove", candidates, mainDir)
+		if err != nil {
+			return err
+		}
+		name = filepath.Base(target.Path)
+	} else {
+		dir := filepath.Join(Dir(cfg, mainDir), name)
+		found := false
+		for _, e := range entries {
+			if e.Path == dir {
+				target = e
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("%s is not a registered worktree", dir)
+		}
+	}
+
+	ok, err := picker.Confirm(fmt.Sprintf("Remove worktree %q (branch %s)?", name, target.Branch))
+	if err != nil {
+		return err
+	}
+	if !ok {
+		fmt.Fprintln(w, "wt: aborted")
+		return nil
+	}
+
+	if err := git.WorktreeRemove(mainDir, target.Path); err != nil {
+		return err
+	}
+	if target.Branch != "" && target.Branch != "(detached)" {
+		if err := git.BranchDelete(mainDir, target.Branch); err != nil {
+			fmt.Fprintf(w, "wt: WARNING could not delete branch %s: %v\n", target.Branch, err)
+		}
+	}
+	if err := git.WorktreePrune(mainDir); err != nil {
+		fmt.Fprintf(w, "wt: WARNING prune failed: %v\n", err)
+	}
+
+	fmt.Fprintf(w, "wt: removed %s\n", name)
+	return nil
 }

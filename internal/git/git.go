@@ -100,3 +100,27 @@ func WorktreeList(mainDir string) ([]Worktree, error) {
 
 	return entries, nil
 }
+
+// WorktreeRemove runs `git worktree remove <dir>` in mainDir.
+func WorktreeRemove(mainDir, dir string) error {
+	cmd := exec.Command("git", "-C", mainDir, "worktree", "remove", dir)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+// WorktreePrune runs `git worktree prune` in mainDir.
+func WorktreePrune(mainDir string) error {
+	cmd := exec.Command("git", "-C", mainDir, "worktree", "prune")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+// BranchDelete runs `git branch -d <branch>` in mainDir.
+func BranchDelete(mainDir, branch string) error {
+	cmd := exec.Command("git", "-C", mainDir, "branch", "-d", branch)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
