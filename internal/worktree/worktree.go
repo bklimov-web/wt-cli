@@ -66,14 +66,17 @@ func New(cfg config.Config, mainDir, name, branch string, w io.Writer) (string, 
 		branch = Branch(cfg, name)
 	}
 
-	def := git.DefaultBranch(mainDir)
+	def, err := git.DefaultBranch(mainDir)
+	if err != nil {
+		fmt.Fprintf(w, "wt: WARNING could not resolve default branch: %v\n", err)
+	}
 	if def == "" {
 		def = "master"
 	}
 
 	fmt.Fprintln(w, "wt: fetching origin...")
 	if err := git.Fetch(mainDir); err != nil {
-		fmt.Fprintf(w, "wt: WARNING fetch failed — branching from your local origin/%s\n", def)
+		fmt.Fprintf(w, "wt: WARNING fetch failed (%v) — branching from your local origin/%s\n", err, def)
 	}
 
 	baseRef := "origin/" + def
@@ -87,14 +90,15 @@ func New(cfg config.Config, mainDir, name, branch string, w io.Writer) (string, 
 
 	for _, f := range cfg.EnvFiles {
 		src := filepath.Join(mainDir, f)
-		if _, err := os.Stat(src); err != nil {
+		info, err := os.Stat(src)
+		if err != nil {
 			continue
 		}
 		data, err := os.ReadFile(src)
 		if err != nil {
 			return dir, fmt.Errorf("reading %s: %w", f, err)
 		}
-		if err := os.WriteFile(filepath.Join(dir, f), data, 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, f), data, info.Mode().Perm()); err != nil {
 			return dir, fmt.Errorf("copying %s: %w", f, err)
 		}
 		fmt.Fprintf(w, "wt: copied %s\n", f)
@@ -184,7 +188,7 @@ func Remove(cfg config.Config, mainDir, name string, w io.Writer) error {
 	if err := git.WorktreeRemove(mainDir, target.Path); err != nil {
 		return err
 	}
-	if target.Branch != "" && target.Branch != "(detached)" {
+	if target.Branch != "" && target.Branch != git.DetachedBranch {
 		if err := git.BranchDelete(mainDir, target.Branch); err != nil {
 			fmt.Fprintf(w, "wt: WARNING could not delete branch %s: %v\n", target.Branch, err)
 		}

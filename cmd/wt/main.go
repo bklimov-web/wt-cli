@@ -62,7 +62,10 @@ func newCommand() *cli.Command {
 				return err
 			}
 
-			_, err = worktree.New(cfg, mainDir, name, branch, os.Stdout)
+			dir, err := worktree.New(cfg, mainDir, name, branch, os.Stdout)
+			if err != nil && dir != "" {
+				return fmt.Errorf("%w (partial worktree left at %s)", err, dir)
+			}
 			return err
 		},
 	}

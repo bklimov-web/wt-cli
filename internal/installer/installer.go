@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 // manager pairs a lockfile with the command that installs from it.
@@ -30,7 +31,7 @@ func Install(dir string) error {
 		if _, err := os.Stat(filepath.Join(dir, m.lockfile)); err != nil {
 			continue
 		}
-		fmt.Printf("wt: running %s\n", joinCmd(m.command))
+		fmt.Printf("wt: running %s\n", strings.Join(m.command, " "))
 		cmd := exec.Command(m.command[0], m.command[1:]...)
 		cmd.Dir = dir
 		cmd.Stdout = os.Stdout
@@ -39,12 +40,4 @@ func Install(dir string) error {
 	}
 	fmt.Println("wt: no lockfile found, skipping install")
 	return nil
-}
-
-func joinCmd(parts []string) string {
-	out := parts[0]
-	for _, p := range parts[1:] {
-		out += " " + p
-	}
-	return out
 }
