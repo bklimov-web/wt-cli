@@ -31,6 +31,20 @@ func main() {
 	}
 }
 
+// setup resolves the main checkout and loads its config — the first step of
+// every command below.
+func setup() (mainDir string, cfg config.Config, err error) {
+	mainDir, err = git.MainDir()
+	if err != nil {
+		return "", config.Config{}, err
+	}
+	cfg, err = config.Load(mainDir)
+	if err != nil {
+		return "", config.Config{}, err
+	}
+	return mainDir, cfg, nil
+}
+
 func newCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "new",
@@ -43,12 +57,7 @@ func newCommand() *cli.Command {
 				return fmt.Errorf("name required")
 			}
 
-			mainDir, err := git.MainDir()
-			if err != nil {
-				return err
-			}
-
-			cfg, err := config.Load(mainDir)
+			mainDir, cfg, err := setup()
 			if err != nil {
 				return err
 			}
@@ -81,12 +90,7 @@ func rmCommand() *cli.Command {
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			name := cmd.Args().Get(0)
 
-			mainDir, err := git.MainDir()
-			if err != nil {
-				return err
-			}
-
-			cfg, err := config.Load(mainDir)
+			mainDir, cfg, err := setup()
 			if err != nil {
 				return err
 			}
@@ -104,12 +108,7 @@ func openCommand() *cli.Command {
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			name := cmd.Args().Get(0)
 
-			mainDir, err := git.MainDir()
-			if err != nil {
-				return err
-			}
-
-			cfg, err := config.Load(mainDir)
+			mainDir, cfg, err := setup()
 			if err != nil {
 				return err
 			}
@@ -127,12 +126,7 @@ func pathCommand() *cli.Command {
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			name := cmd.Args().Get(0)
 
-			mainDir, err := git.MainDir()
-			if err != nil {
-				return err
-			}
-
-			cfg, err := config.Load(mainDir)
+			mainDir, cfg, err := setup()
 			if err != nil {
 				return err
 			}
