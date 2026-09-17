@@ -21,6 +21,7 @@ func main() {
 			lsCommand(),
 			rmCommand(),
 			openCommand(),
+			pathCommand(),
 		},
 	}
 
@@ -114,6 +115,35 @@ func openCommand() *cli.Command {
 			}
 
 			return worktree.Open(cfg, mainDir, name, os.Stdout)
+		},
+	}
+}
+
+func pathCommand() *cli.Command {
+	return &cli.Command{
+		Name:      "path",
+		Usage:     "print the worktree path (interactive picker if name omitted)",
+		ArgsUsage: "[name]",
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			name := cmd.Args().Get(0)
+
+			mainDir, err := git.MainDir()
+			if err != nil {
+				return err
+			}
+
+			cfg, err := config.Load(mainDir)
+			if err != nil {
+				return err
+			}
+
+			dir, err := worktree.Path(cfg, mainDir, name)
+			if err != nil {
+				return err
+			}
+
+			fmt.Fprintln(os.Stdout, dir)
+			return nil
 		},
 	}
 }

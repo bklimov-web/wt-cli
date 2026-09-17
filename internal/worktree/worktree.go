@@ -32,6 +32,25 @@ func Branch(cfg config.Config, name string) string {
 	return strings.ReplaceAll(cfg.BranchPattern, "{name}", name)
 }
 
+// Path returns the worktree path for name — or, if name is empty, prompts
+// the user to pick one via an interactive picker (the main checkout is
+// offered as an option, labeled "(main)"). It doesn't check the path exists.
+func Path(cfg config.Config, mainDir, name string) (string, error) {
+	if name != "" {
+		return filepath.Join(Dir(cfg, mainDir), name), nil
+	}
+
+	entries, err := git.WorktreeList(mainDir)
+	if err != nil {
+		return "", err
+	}
+	target, err := picker.SelectWorktree("get the path of", entries, mainDir)
+	if err != nil {
+		return "", err
+	}
+	return target.Path, nil
+}
+
 // New creates a worktree named name (branch defaults to cfg.BranchPattern
 // with name substituted if branch is empty), branching from origin's
 // default branch. It copies configured env files, runs the install
