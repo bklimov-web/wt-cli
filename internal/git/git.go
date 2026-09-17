@@ -57,3 +57,46 @@ func WorktreeAdd(mainDir, dir, branch, baseRef string) error {
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
+
+// Worktree is one entry from `git worktree list`: its checkout path and the
+// branch checked out there ("(detached)" if none).
+type Worktree struct {
+	Path   string
+	Branch string
+}
+
+// WorktreeList returns all worktrees registered against mainDir (the main
+// checkout included), parsed from `git worktree list --porcelain`.
+func WorktreeList(mainDir string) ([]Worktree, error) {
+	out, err := exec.Command("git", "-C", mainDir, "worktree", "list", "--porcelain").Output()
+	if err != nil {
+		return nil, fmt.Errorf("git worktree list: %w", err)
+	}
+
+	var (
+		entries []Worktree
+		path    string
+		branch  string
+	)
+	flush := func() {
+		if path != "" {
+			entries = append(entries, Worktree{Path: path, Branch: branch})
+		}
+		path, branch = "", ""
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		switch {
+		case strings.HasPrefix(line, "worktree "):
+			path = strings.TrimPrefix(line, "worktree ")
+		case strings.HasPrefix(line, "branch "):
+			branch = strings.TrimPrefix(strings.TrimPrefix(line, "branch "), "refs/heads/")
+		case strings.HasPrefix(line, "detached"):
+			branch = "(detached)"
+		case line == "":
+			flush()
+		}
+	}
+	flush()
+
+	return entries, nil
+}

@@ -18,6 +18,7 @@ func main() {
 		Usage: "create git worktrees with local files and deps in place",
 		Commands: []*cli.Command{
 			newCommand(),
+			lsCommand(),
 		},
 	}
 
@@ -51,6 +52,20 @@ func newCommand() *cli.Command {
 
 			_, err = worktree.New(cfg, mainDir, name, branch, os.Stdout)
 			return err
+		},
+	}
+}
+
+func lsCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "ls",
+		Usage: "list worktrees (branch first, then path)",
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			mainDir, err := git.MainDir()
+			if err != nil {
+				return err
+			}
+			return worktree.List(mainDir, os.Stdout)
 		},
 	}
 }

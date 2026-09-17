@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"text/tabwriter"
 
 	"wt/internal/config"
 	"wt/internal/editor"
@@ -94,4 +95,21 @@ func New(cfg config.Config, mainDir, name, branch string, w io.Writer) (string, 
 	}
 
 	return dir, nil
+}
+
+// List prints every worktree registered against mainDir (the main checkout
+// included) as a two-column, alignment-padded table: branch first, path
+// second.
+func List(mainDir string, w io.Writer) error {
+	entries, err := git.WorktreeList(mainDir)
+	if err != nil {
+		return err
+	}
+
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(tw, "BRANCH\tPATH")
+	for _, e := range entries {
+		fmt.Fprintf(tw, "%s\t%s\n", e.Branch, e.Path)
+	}
+	return tw.Flush()
 }
