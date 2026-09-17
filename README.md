@@ -17,10 +17,10 @@ wt: feature/my-feature  ->  ../myrepo-wt/my-feature
 ### Homebrew (macOS/Linux, no Go required)
 
 ```sh
-brew install --cask bklimov-web/tap/wt
+brew install bklimov-web/tap/wt
 ```
 
-Installs as `wt`, updates with `brew upgrade --cask wt`.
+Installs as `wt`, updates with `brew upgrade wt`.
 
 ### Go
 

@@ -29,21 +29,15 @@ changelog:
       - "^docs:"
       - "^test:"
 
-homebrew_casks:
+brews:
   - name: wt
     repository:
       owner: bklimov-web
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    directory: Casks
+    directory: Formula
     homepage: "https://github.com/bklimov-web/wt-cli"
     description: "Create git worktrees with local files and deps in place"
     license: "MIT"
-    binaries:
-      - wt
-    hooks:
-      post:
-        install: |
-          if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/wt"]
-          end
+    test: |
+      system "#{bin}/wt", "--help"
