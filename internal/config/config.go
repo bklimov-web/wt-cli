@@ -5,6 +5,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -85,10 +86,10 @@ func applyEnv(cfg *Config) {
 	if v, ok := os.LookupEnv("WT_ENV_FILES"); ok {
 		cfg.EnvFiles = strings.Fields(v)
 	}
-	if v := os.Getenv("WT_NO_INSTALL"); v != "" {
-		cfg.NoInstall = true
+	if v, err := strconv.ParseBool(os.Getenv("WT_NO_INSTALL")); err == nil {
+		cfg.NoInstall = v
 	}
-	if v := os.Getenv("WT_NO_CODE"); v != "" {
-		cfg.NoCode = true
+	if v, err := strconv.ParseBool(os.Getenv("WT_NO_CODE")); err == nil {
+		cfg.NoCode = v
 	}
 }
