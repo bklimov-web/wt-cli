@@ -3,7 +3,7 @@ version: 2
 project_name: wt
 
 builds:
-  - main: .
+  - main: ./cmd/wt
     binary: wt
     env:
       - CGO_ENABLED=0

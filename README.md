@@ -14,15 +14,18 @@ wt: feature/my-feature  ->  ../myrepo-wt/my-feature
 
 ## Install
 
+### Homebrew (macOS/Linux, no Go required)
+
 ```sh
-go install github.com/bklimov-web/wt-cli@latest
+brew install --cask bklimov-web/tap/wt
 ```
 
-`go install` names the binary after the repo directory, so this installs as
-`wt-cli`, not `wt`. Rename it to taste, e.g.:
+Installs as `wt`, updates with `brew upgrade --cask wt`.
+
+### Go
 
 ```sh
-mv "$(go env GOPATH)/bin/wt-cli" "$(go env GOPATH)/bin/wt"
+go install github.com/bklimov-web/wt-cli/cmd/wt@latest
 ```
 
 Or clone and build:
@@ -30,7 +33,7 @@ Or clone and build:
 ```sh
 git clone https://github.com/bklimov-web/wt-cli
 cd wt-cli
-go build -o wt .
+go build -o wt ./cmd/wt
 ```
 
 > **Note:** `wt` is a common name — it may collide with another binary on
