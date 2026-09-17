@@ -91,8 +91,27 @@ These apply on top of both config files, for one-off use:
 ## Development
 
 ```sh
-go test ./...
-go vet ./...
+git clone https://github.com/bklimov-web/wt-cli
+cd wt-cli
+make setup   # git hooks (auto-gofmt on commit, build/vet/test on push) + deps
+```
+
+```sh
+make build   # go build ./...
+make test    # go test ./...
+make vet     # go vet ./...
+make lint    # golangci-lint run (needs golangci-lint installed)
+make ci      # what CI runs: gofmt check + vet + build + test -race -shuffle=on
+```
+
+No `make`? Run what it wraps directly:
+
+```sh
+git config core.hooksPath .githooks   # setup
+go mod download                       # setup
+go build ./...                        # build
+go test ./...                         # test
+go vet ./...                          # vet
 ```
 
 ## License

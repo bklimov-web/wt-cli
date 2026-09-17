@@ -1,0 +1,11 @@
+#!/bin/sh
+# Auto-formats staged .go files with gofmt so formatting never fails CI.
+# Enable with: git config core.hooksPath .githooks
+
+set -e
+
+files=$(git diff --cached --name-only --diff-filter=ACM -- '*.go')
+[ -z "$files" ] && exit 0
+
+gofmt -w $files
+git add $files

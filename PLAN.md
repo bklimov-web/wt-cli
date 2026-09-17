@@ -107,25 +107,26 @@
       `github.com/bklimov-web/wt-cli`
 - [x] `.gitignore` для собранного бинарника `wt` (был закоммичен, вынесен
       из трекинга `git rm --cached`)
-- [ ] godoc-комментарии на публичных типах/функциях в `internal/` —
+- [x] godoc-комментарии на публичных типах/функциях в `internal/` —
       единственная "документация", которую Go-тулинг понимает нативно
 
 ### B2 — CI
-- [ ] `.github/workflows/ci.yml`: `go build`, `go vet`, `go test ./...` на
-      каждый push/PR — ловит регрессии до мержа, не полагаясь на память
-- [ ] `golangci-lint` (`.golangci.yml`) в том же workflow — статический
-      анализ (staticcheck, errcheck и т.д.) единым инструментом вместо
-      набора разрозненных линтеров
+- [x] `.github/workflows/ci.yml`: `gofmt`, `go vet`, `go build`,
+      `go test -race -shuffle=on ./...` на push/PR, матрица
+      ubuntu-latest + macos-latest — ловит регрессии до мержа
+- [x] `golangci-lint` (`.golangci.yml`) отдельным job'ом в том же
+      workflow — статический анализ (staticcheck, errcheck и т.д.)
+      единым инструментом вместо набора разрозненных линтеров
 
 ### B3 — Релизы и дистрибуция
-- [ ] `goreleaser` (`.goreleaser.yml`) — кросс-компиляция бинарей под
+- [x] `goreleaser` (`.goreleaser.yml`) — кросс-компиляция бинарей под
       macOS/Linux (и опционально Windows) по git-тегу, генерация
       чексумм и changelog, публикация GitHub Release одной командой
-- [ ] `.github/workflows/release.yml`, триггер на тег `v*`, запускает
+- [x] `.github/workflows/release.yml`, триггер на тег `v*`, запускает
       goreleaser — релиз перестаёт быть ручным процессом
-- [ ] Решить механизм дистрибуции: Homebrew tap (goreleaser умеет
-      генерировать formula автоматически) / `go install` / curl-скрипт —
-      зависит от того, кто целевой пользователь (Go-разработчики vs все)
+- [x] Решить механизм дистрибуции: **решено** — Homebrew tap
+      (`brew install bklimov-web/tap/wt`, formula генерируется
+      goreleaser'ом, задокументировано в README)
 
 ### B4 — Community-гигиена (по желанию, не блокирует релиз)
 - [ ] `CONTRIBUTING.md` — как собрать, потестировать, куда слать PR

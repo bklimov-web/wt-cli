@@ -1,0 +1,9 @@
+#!/bin/sh
+# Catches the same failures CI would, before they leave your machine.
+# Enable with: git config core.hooksPath .githooks
+
+set -e
+
+go build ./...
+go vet ./...
+go test ./...
