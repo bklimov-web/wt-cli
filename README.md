@@ -12,6 +12,37 @@ wt: running pnpm install
 wt: feature/my-feature  ->  ../myrepo-wt/my-feature
 ```
 
+## Why
+
+A normal `git checkout`/`switch` reuses one working copy, so touching another
+branch means stashing your changes, killing whatever dev server or watcher
+was running, and often reinstalling dependencies if the lockfile differs.
+`git worktree` avoids that by giving you a second working directory on the
+same `.git` — but setting one up by hand still means manually copying
+`.env` files and rerunning the install step every time. `wt` automates that
+part, so spinning up a parallel checkout is a single command instead of a
+five-step ritual.
+
+Reach for it when you need two working states of the repo alive **at the
+same time**, not when you're just switching between them one after another:
+
+- **Reviewing a PR without shelving your own work.** `wt new review-pr-123
+  origin/pr-branch` — deps and env already in place, your current branch
+  untouched.
+- **A hotfix while mid-feature.** Uncommitted changes in progress, an urgent
+  bug comes in — `wt new hotfix` instead of stashing.
+- **Parallel agents/background jobs.** Multiple AI coding agents or CI-style
+  jobs working on different branches need separate directories so they
+  don't clobber each other's files.
+- **A long test/build run** on one branch while you keep working in the
+  main checkout.
+- **Comparing behavior side by side** — two branches running at once
+  instead of switching back and forth.
+
+If you just need a quick look at another branch and you'll be back in a
+minute, `git stash` + `checkout` (or `git show`) is cheaper — a worktree
+only pays for itself when the two states need to coexist.
+
 ## Install
 
 ### Homebrew (macOS/Linux, no Go required)
