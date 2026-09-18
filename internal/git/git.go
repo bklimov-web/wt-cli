@@ -129,6 +129,25 @@ func WorktreePrune(mainDir string) error {
 	return cmd.Run()
 }
 
+// IgnoredFiles returns paths mainDir's gitignore rules ignore, relative to
+// mainDir — from `git status --porcelain --ignored --untracked-files=all`.
+// A directory that's entirely ignored is returned as one entry (its
+// trailing slash stripped), not walked file by file.
+func IgnoredFiles(mainDir string) ([]string, error) {
+	out, err := exec.Command("git", "-C", mainDir, "status", "--porcelain", "--ignored", "--untracked-files=all").Output()
+	if err != nil {
+		return nil, fmt.Errorf("git status --ignored: %w", err)
+	}
+
+	var files []string
+	for _, line := range strings.Split(string(out), "\n") {
+		if path, ok := strings.CutPrefix(line, "!! "); ok {
+			files = append(files, strings.TrimSuffix(path, "/"))
+		}
+	}
+	return files, nil
+}
+
 // BranchDelete runs `git branch -d <branch>` in mainDir.
 func BranchDelete(mainDir, branch string) error {
 	cmd := exec.Command("git", "-C", mainDir, "branch", "-d", "--", branch)

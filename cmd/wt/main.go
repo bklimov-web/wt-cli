@@ -18,6 +18,7 @@ func main() {
 		Name:  "wt",
 		Usage: "create git worktrees with local files and deps in place",
 		Commands: []*cli.Command{
+			initCommand(),
 			newCommand(),
 			lsCommand(),
 			rmCommand(),
@@ -44,6 +45,20 @@ func setup() (mainDir string, cfg config.Config, err error) {
 		return "", config.Config{}, err
 	}
 	return mainDir, cfg, nil
+}
+
+func initCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "init",
+		Usage: "scaffold a .wt.toml by detecting an install step and env files",
+		Action: func(_ context.Context, _ *cli.Command) error {
+			mainDir, err := git.MainDir()
+			if err != nil {
+				return err
+			}
+			return worktree.Init(mainDir, os.Stdout)
+		},
+	}
 }
 
 func newCommand() *cli.Command {

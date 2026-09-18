@@ -76,6 +76,7 @@ go build -o wt ./cmd/wt
 
 | Command | What it does |
 | --- | --- |
+| `wt init` | Scaffold a `.wt.toml` by detecting an install step (Go, Python, Java/Maven/Gradle, Rust, Ruby, PHP, .NET — when no JS lockfile) and gitignored local-config files (`.env*`, `*.local*`, `*secret*`) |
 | `wt new <name> [branch]` | Create a worktree branched off `origin/<default>`, copy env files, run the detected package manager's install, open it in your editor |
 | `wt ls` | List worktrees (branch + path) |
 | `wt rm [name]` | Remove a worktree and its branch, with a confirmation prompt. Interactive picker if `name` is omitted |
