@@ -49,6 +49,14 @@ func TestLoad(t *testing.T) {
 			},
 		},
 		{
+			name:    "per-repo sets install_commands",
+			perRepo: `install_commands = ["python -m venv .venv", "pip install -r requirements.txt"]`,
+			want: func(d Config) Config {
+				d.InstallCommands = []string{"python -m venv .venv", "pip install -r requirements.txt"}
+				return d
+			},
+		},
+		{
 			name:    "per-repo wins over global for the field both set",
 			global:  "editor = \"vim\"\nbranch_pattern = \"feature/{name}\"",
 			perRepo: `editor = "subl"`,

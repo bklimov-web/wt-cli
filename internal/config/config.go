@@ -16,11 +16,11 @@ import (
 // WorktreeDir and BranchPattern are templates: "{repo}" and "{name}" are
 // substituted by the caller once the repo name / worktree name are known.
 type Config struct {
-	WorktreeDir    string   `toml:"worktree_dir"`
-	BranchPattern  string   `toml:"branch_pattern"`
-	Editor         string   `toml:"editor"`
-	EnvFiles       []string `toml:"env_files"`
-	InstallCommand string   `toml:"install_command"`
+	WorktreeDir     string   `toml:"worktree_dir"`
+	BranchPattern   string   `toml:"branch_pattern"`
+	Editor          string   `toml:"editor"`
+	EnvFiles        []string `toml:"env_files"`
+	InstallCommands []string `toml:"install_commands"`
 
 	// NoInstall / NoCode come only from env vars (WT_NO_INSTALL /
 	// WT_NO_CODE), never from a TOML file — they're one-shot run
@@ -33,11 +33,10 @@ type Config struct {
 // script's behavior.
 func Default() Config {
 	return Config{
-		WorktreeDir:    "../{repo}-wt",
-		BranchPattern:  "feature/{name}",
-		Editor:         "code",
-		EnvFiles:       []string{".env", ".env.local"},
-		InstallCommand: "",
+		WorktreeDir:   "../{repo}-wt",
+		BranchPattern: "feature/{name}",
+		Editor:        "code",
+		EnvFiles:      []string{".env", ".env.local"},
 	}
 }
 

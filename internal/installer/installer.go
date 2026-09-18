@@ -1,5 +1,6 @@
-// Package installer auto-detects a JS package manager from lockfiles and
-// runs its install command.
+// Package installer runs a worktree's install step: either a user-supplied
+// list of commands, or an auto-detected JS package manager's install
+// command based on lockfiles present.
 package installer
 
 import (
@@ -23,10 +24,27 @@ var managers = []manager{
 	{"package-lock.json", []string{"npm", "ci"}},
 }
 
-// Install detects the package manager from dir's lockfile and runs its
-// install command there. It's a no-op (with a status line) if no known
-// lockfile is present.
-func Install(dir string) error {
+// Install runs the worktree's install step in dir. If commands is
+// non-empty, each entry is run in order through the shell (so entries can
+// use shell syntax like "&&" or pipes), stopping at the first failure.
+// Otherwise it falls back to detecting a JS package manager from dir's
+// lockfile. It's a no-op (with a status line) if commands is empty and no
+// known lockfile is present.
+func Install(dir string, commands []string) error {
+	if len(commands) > 0 {
+		for _, c := range commands {
+			fmt.Printf("wt: running %s\n", c)
+			cmd := exec.Command("sh", "-c", c)
+			cmd.Dir = dir
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Run(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
 	for _, m := range managers {
 		if _, err := os.Stat(filepath.Join(dir, m.lockfile)); err != nil {
 			continue
