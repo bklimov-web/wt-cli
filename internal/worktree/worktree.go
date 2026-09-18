@@ -105,8 +105,8 @@ func New(cfg config.Config, mainDir, name, branch string, w io.Writer) (string, 
 	}
 
 	if !cfg.NoInstall {
-		if err := installer.Install(dir); err != nil {
-			return dir, fmt.Errorf("install failed: %w", err)
+		if err := installer.Install(dir, cfg.InstallCommands); err != nil {
+			fmt.Fprintf(w, "wt: WARNING install failed: %v\n", err)
 		}
 	}
 

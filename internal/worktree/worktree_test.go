@@ -91,6 +91,26 @@ func TestNew_CopiesEnvFilePreservingPermissions(t *testing.T) {
 	}
 }
 
+func TestNew_InstallFailureWarnsButStillCreatesWorktree(t *testing.T) {
+	mainDir := initRepo(t, "main")
+	cfg := config.Default()
+	cfg.NoCode = true
+	cfg.InstallCommands = []string{"false"}
+
+	var out bytes.Buffer
+	dir, err := New(cfg, mainDir, "myfeature", "", &out)
+	if err != nil {
+		t.Fatalf("New() error = %v, want nil (install failure should warn, not fail)", err)
+	}
+
+	if _, statErr := os.Stat(dir); statErr != nil {
+		t.Errorf("worktree dir missing after install failure: %v", statErr)
+	}
+	if !bytes.Contains(out.Bytes(), []byte("WARNING install failed")) {
+		t.Errorf("output missing install-failure warning:\n%s", out.String())
+	}
+}
+
 // TestRemove_DetachedBranchGuardMatchesGitOutput exercises the exact guard
 // expression Remove uses (target.Branch != git.DetachedBranch) against a
 // real detached worktree, so it can't drift from what git.WorktreeList

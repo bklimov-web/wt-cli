@@ -62,16 +62,27 @@ repo root.
 
 ```toml
 # ~/.config/wt/config.toml or <repo>/.wt.toml
-worktree_dir    = "../{repo}-wt"     # {repo} is replaced with the repo's dir name
-branch_pattern  = "feature/{name}"   # {name} is replaced with the worktree name
-editor          = "code"             # command used to open a worktree
-env_files       = [".env", ".env.local"]
-install_command = ""                 # override auto-detected install command
+worktree_dir     = "../{repo}-wt"     # {repo} is replaced with the repo's dir name
+branch_pattern   = "feature/{name}"   # {name} is replaced with the worktree name
+editor           = "code"             # command used to open a worktree
+env_files        = [".env", ".env.local"]
+install_commands = []                 # override auto-detected install step
 ```
 
 Install-manager detection is by lockfile: `pnpm-lock.yaml` → `pnpm install`,
 `yarn.lock` → `yarn install --frozen-lockfile`, `bun.lockb` → `bun install`,
 `package-lock.json` → `npm ci`. No lockfile, no install.
+
+`install_commands` overrides this detection with your own steps, run in
+order through the shell (stopping at the first failure) — handy for
+ecosystems with no single lockfile convention, e.g. Python:
+
+```toml
+install_commands = [
+  "python -m venv .venv",
+  ".venv/bin/pip install -r requirements.txt",
+]
+```
 
 ### Environment overrides
 
