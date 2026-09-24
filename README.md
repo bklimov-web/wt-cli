@@ -77,7 +77,7 @@ go build -o wt ./cmd/wt
 | Command | What it does |
 | --- | --- |
 | `wt init` | Scaffold a `.wt.toml` by detecting an install step (Go, Python, Java/Maven/Gradle, Rust, Ruby, PHP, .NET — when no JS lockfile) and gitignored local-config files (`.env*`, `*.local*`, `*secret*`) |
-| `wt new <name> [branch]` | Create a worktree branched off `origin/<default>`, copy env files, run the detected package manager's install, open it in your editor |
+| `wt new <name> [branch]` | Create a worktree branched off `origin/<default>`, copy env files, run the install step (auto-detected or from `install_commands`), open it in your editor |
 | `wt ls` | List worktrees (branch + path) |
 | `wt rm [name]` | Remove a worktree and its branch, with a confirmation prompt. Interactive picker if `name` is omitted |
 | `wt open [name]` | Open a worktree in your configured editor. Interactive picker if `name` is omitted |
@@ -116,6 +116,10 @@ install_commands = [
 ]
 ```
 
+Don't want to write it by hand? Run `wt init` in your repo root — it
+detects the install step for your stack and the gitignored local files worth
+copying, and writes a starter `.wt.toml` you can edit.
+
 ### Environment overrides
 
 These apply on top of both config files, for one-off use:
@@ -141,6 +145,7 @@ make setup   # git hooks (auto-gofmt on commit, build/vet/test on push) + deps
 
 ```sh
 make build   # go build ./...
+make fmt     # gofmt -w .
 make test    # go test ./...
 make vet     # go vet ./...
 make lint    # golangci-lint run (needs golangci-lint installed)
