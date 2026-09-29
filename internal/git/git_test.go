@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -149,7 +150,7 @@ func TestStatusAndUnpushed(t *testing.T) {
 	}
 
 	// No remotes at all: the init commit counts as unpushed.
-	unpushed, err := UnpushedCommits(dir)
+	unpushed, err := UnpushedCommits(dir, "")
 	if err != nil || len(unpushed) != 1 {
 		t.Fatalf("UnpushedCommits() = %v, %v; want 1 commit", unpushed, err)
 	}
@@ -158,8 +159,76 @@ func TestStatusAndUnpushed(t *testing.T) {
 	if out, err := exec.Command("git", "-C", dir, "update-ref", "refs/remotes/origin/main", "HEAD").CombinedOutput(); err != nil {
 		t.Fatalf("update-ref: %v\n%s", err, out)
 	}
-	unpushed, err = UnpushedCommits(dir)
+	unpushed, err = UnpushedCommits(dir, "")
 	if err != nil || len(unpushed) != 0 {
 		t.Fatalf("UnpushedCommits() = %v, %v; want none", unpushed, err)
+	}
+}
+
+// gitIn runs git in dir and returns trimmed stdout, failing the test on error.
+func gitIn(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %v: %v\n%s", args, err, out)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+func commitFile(t *testing.T, dir, name, content string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitIn(t, dir, "add", name)
+	gitIn(t, dir, "commit", "-q", "-m", "add "+name)
+}
+
+// A commit cherry-picked onto the default branch has a different hash but
+// the same patch, so it isn't "unpushed".
+func TestUnpushedCommits_EquivalentPatchUpstream(t *testing.T) {
+	dir := initRepo(t)
+	gitIn(t, dir, "branch", "-M", "main")
+	gitIn(t, dir, "checkout", "-q", "-b", "feature")
+	commitFile(t, dir, "a.txt", "a")
+	feature := gitIn(t, dir, "rev-parse", "HEAD")
+
+	gitIn(t, dir, "checkout", "-q", "main")
+	commitFile(t, dir, "other.txt", "o")
+	gitIn(t, dir, "cherry-pick", feature)
+	gitIn(t, dir, "update-ref", "refs/remotes/origin/main", "main")
+	gitIn(t, dir, "checkout", "-q", "feature")
+
+	got, err := UnpushedCommits(dir, "origin/main")
+	if err != nil || len(got) != 0 {
+		t.Fatalf("UnpushedCommits() = %v, %v; want none", got, err)
+	}
+}
+
+// A multi-commit branch squashed into one commit on the default branch is
+// recognised as merged; one extra unique commit on top is not.
+func TestUnpushedCommits_SquashMerged(t *testing.T) {
+	dir := initRepo(t)
+	gitIn(t, dir, "branch", "-M", "main")
+	gitIn(t, dir, "checkout", "-q", "-b", "feature")
+	commitFile(t, dir, "a.txt", "a")
+	commitFile(t, dir, "b.txt", "b")
+
+	gitIn(t, dir, "checkout", "-q", "main")
+	commitFile(t, dir, "other.txt", "o")
+	gitIn(t, dir, "checkout", "feature", "--", "a.txt", "b.txt")
+	gitIn(t, dir, "commit", "-q", "-m", "squash feature")
+	gitIn(t, dir, "update-ref", "refs/remotes/origin/main", "main")
+	gitIn(t, dir, "checkout", "-q", "feature")
+
+	got, err := UnpushedCommits(dir, "origin/main")
+	if err != nil || len(got) != 0 {
+		t.Fatalf("squash-merged: UnpushedCommits() = %v, %v; want none", got, err)
+	}
+
+	commitFile(t, dir, "c.txt", "c")
+	got, err = UnpushedCommits(dir, "origin/main")
+	if err != nil || len(got) == 0 {
+		t.Fatalf("with unique commit: UnpushedCommits() = %v, %v; want non-empty", got, err)
 	}
 }

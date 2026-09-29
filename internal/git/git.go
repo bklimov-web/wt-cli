@@ -172,14 +172,97 @@ func StatusLines(dir string) ([]string, error) {
 }
 
 // UnpushedCommits returns the one-line summaries of commits reachable from
-// HEAD in dir but from no remote-tracking branch — work that exists nowhere
-// else once the worktree's branch is deleted.
-func UnpushedCommits(dir string) ([]string, error) {
-	out, err := exec.Command("git", "-C", dir, "log", "--oneline", "HEAD", "--not", "--remotes").Output()
+// HEAD in dir but from no remote-tracking branch — work that would be lost
+// with the worktree's branch. Commits whose content is nonetheless already
+// upstream are left out, because their hashes changed but nothing is lost:
+//
+//   - a commit whose patch appears in the branch's upstream or in
+//     defaultRef (e.g. "origin/main"), as after a rebase, amend or
+//     cherry-pick (matched by `git cherry`, i.e. by patch-id, not hash);
+//   - the whole branch, if its combined diff appears as a single commit in
+//     defaultRef, as after a squash merge.
+//
+// defaultRef may be "" or unresolvable, in which case only the upstream
+// (if any) is compared.
+func UnpushedCommits(dir, defaultRef string) ([]string, error) {
+	out, err := exec.Command("git", "-C", dir, "log", "--format=%H %h %s", "HEAD", "--not", "--remotes").Output()
 	if err != nil {
 		return nil, fmt.Errorf("git log: %w", err)
 	}
-	return splitLines(string(out)), nil
+	commits := splitLines(string(out))
+	if len(commits) == 0 {
+		return nil, nil
+	}
+
+	var bases []string
+	if up, err := exec.Command("git", "-C", dir, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}").Output(); err == nil {
+		bases = append(bases, strings.TrimSpace(string(up)))
+	}
+	if defaultRef != "" && RefExists(dir, defaultRef) {
+		bases = append(bases, defaultRef)
+	}
+
+	// Drop commits whose patch is already in a base.
+	present := make(map[string]bool)
+	for _, base := range bases {
+		out, err := exec.Command("git", "-C", dir, "cherry", base, "HEAD").Output()
+		if err != nil {
+			continue // a base we can't compare against just filters nothing
+		}
+		for _, line := range splitLines(string(out)) {
+			if hash, ok := strings.CutPrefix(line, "- "); ok {
+				present[hash] = true
+			}
+		}
+	}
+	var remaining []string
+	for _, c := range commits {
+		hash, _, _ := strings.Cut(c, " ")
+		if !present[hash] {
+			remaining = append(remaining, c)
+		}
+	}
+
+	if len(remaining) > 0 && defaultRef != "" && squashMerged(dir, defaultRef) {
+		remaining = nil
+	}
+
+	// Strip the full hash we only needed for matching.
+	for i, c := range remaining {
+		_, rest, _ := strings.Cut(c, " ")
+		remaining[i] = rest
+	}
+	return remaining, nil
+}
+
+// squashMerged reports whether the combined changes of HEAD since its fork
+// point from defaultRef exist as one commit in defaultRef. It builds a
+// throwaway commit holding HEAD's tree on top of the merge base (never
+// referenced, so it's just garbage for gc) and asks `git cherry` whether
+// defaultRef has an equivalent patch.
+func squashMerged(dir, defaultRef string) bool {
+	out, err := exec.Command("git", "-C", dir, "merge-base", defaultRef, "HEAD").Output()
+	if err != nil {
+		return false
+	}
+	base := strings.TrimSpace(string(out))
+
+	cmd := exec.Command("git", "-C", dir, "commit-tree", "HEAD^{tree}", "-p", base, "-m", "wt squash check")
+	// commit-tree needs an identity; don't depend on the user having one.
+	cmd.Env = append(os.Environ(),
+		"GIT_AUTHOR_NAME=wt", "GIT_AUTHOR_EMAIL=wt@localhost",
+		"GIT_COMMITTER_NAME=wt", "GIT_COMMITTER_EMAIL=wt@localhost")
+	out, err = cmd.Output()
+	if err != nil {
+		return false
+	}
+	squash := strings.TrimSpace(string(out))
+
+	out, err = exec.Command("git", "-C", dir, "cherry", defaultRef, squash).Output()
+	if err != nil {
+		return false
+	}
+	return strings.HasPrefix(string(out), "- ")
 }
 
 // DiffStat returns `git diff HEAD --stat` for dir: a per-file summary of

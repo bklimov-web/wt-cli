@@ -180,7 +180,7 @@ func Remove(cfg config.Config, mainDir, name string, force bool, w io.Writer) er
 	}
 
 	if !force {
-		dirty, err := reviewUnsaved(cfg, target, name, w)
+		dirty, err := reviewUnsaved(cfg, mainDir, target, name, w)
 		if err != nil {
 			return err
 		}
@@ -231,7 +231,7 @@ const (
 // details, open in the editor, force delete, cancel. "Show details" returns
 // to the menu; "Open in editor" opens the worktree and cancels, so the user
 // can clean up and rerun wt rm.
-func reviewUnsaved(cfg config.Config, target git.Worktree, name string, w io.Writer) (reviewResult, error) {
+func reviewUnsaved(cfg config.Config, mainDir string, target git.Worktree, name string, w io.Writer) (reviewResult, error) {
 	const (
 		optDetails = iota
 		optOpen
@@ -249,7 +249,7 @@ func reviewUnsaved(cfg config.Config, target git.Worktree, name string, w io.Wri
 	if err != nil {
 		return reviewCancel, err
 	}
-	unpushed, err := git.UnpushedCommits(target.Path)
+	unpushed, err := git.UnpushedCommits(target.Path, defaultRef(mainDir))
 	if err != nil {
 		return reviewCancel, err
 	}
@@ -280,13 +280,23 @@ func reviewUnsaved(cfg config.Config, target git.Worktree, name string, w io.Wri
 	}
 }
 
+// defaultRef returns origin's default branch as a ref ("origin/main"), or ""
+// if it can't be resolved — the base UnpushedCommits compares against.
+func defaultRef(mainDir string) string {
+	def, err := git.DefaultBranch(mainDir)
+	if err != nil || def == "" {
+		return ""
+	}
+	return "origin/" + def
+}
+
 func printUnsaved(w io.Writer, name string, status, unpushed []string) {
 	fmt.Fprintf(w, "\nwt: %s has work that would be lost:\n", name)
 	if len(status) > 0 {
 		fmt.Fprintf(w, "  %d uncommitted file(s)\n", len(status))
 	}
 	if len(unpushed) > 0 {
-		fmt.Fprintf(w, "  %d commit(s) not on any remote\n", len(unpushed))
+		fmt.Fprintf(w, "  %d commit(s) not on any remote or in the default branch\n", len(unpushed))
 	}
 	fmt.Fprintln(w)
 }
