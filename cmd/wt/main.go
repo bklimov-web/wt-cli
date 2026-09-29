@@ -106,6 +106,13 @@ func rmCommand() *cli.Command {
 		Name:      "rm",
 		Usage:     "remove a worktree and delete its branch (interactive picker if name omitted)",
 		ArgsUsage: "[name]",
+		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:    "force",
+				Aliases: []string{"f"},
+				Usage:   "skip the uncommitted/unpushed check and discard any changes",
+			},
+		},
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			name := cmd.Args().Get(0)
 
@@ -114,7 +121,7 @@ func rmCommand() *cli.Command {
 				return err
 			}
 
-			return worktree.Remove(cfg, mainDir, name, os.Stdout)
+			return worktree.Remove(cfg, mainDir, name, cmd.Bool("force"), os.Stdout)
 		},
 	}
 }

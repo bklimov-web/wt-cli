@@ -141,8 +141,11 @@ func List(mainDir string, w io.Writer) error {
 // Remove deletes the worktree named name — or, if name is empty, prompts
 // the user to pick one via an interactive picker (the main checkout is
 // never offered) — asks for confirmation, then removes the worktree and
-// deletes its branch. Status messages are written to w.
-func Remove(cfg config.Config, mainDir, name string, w io.Writer) error {
+// deletes its branch. If the worktree has uncommitted changes or unpushed
+// commits, they're listed first and the user chooses whether to inspect,
+// open it in the editor, force-delete, or cancel; force skips that check
+// and discards them. Status messages are written to w.
+func Remove(cfg config.Config, mainDir, name string, force bool, w io.Writer) error {
 	entries, err := git.WorktreeList(mainDir)
 	if err != nil {
 		return err
@@ -176,21 +179,35 @@ func Remove(cfg config.Config, mainDir, name string, w io.Writer) error {
 		}
 	}
 
-	ok, err := picker.Confirm(fmt.Sprintf("Remove worktree %q (branch %s)?", name, target.Branch))
-	if err != nil {
-		return err
-	}
-	if !ok {
-		fmt.Fprintln(w, "wt: aborted")
-		return nil
+	if !force {
+		dirty, err := reviewUnsaved(cfg, target, name, w)
+		if err != nil {
+			return err
+		}
+		switch {
+		case dirty == reviewCancel:
+			fmt.Fprintln(w, "wt: aborted")
+			return nil
+		case dirty == reviewForce:
+			force = true
+		default: // reviewClean: nothing at risk, plain confirmation
+			ok, err := picker.Confirm(fmt.Sprintf("Remove worktree %q (branch %s)?", name, target.Branch))
+			if err != nil {
+				return err
+			}
+			if !ok {
+				fmt.Fprintln(w, "wt: aborted")
+				return nil
+			}
+		}
 	}
 
-	if err := git.WorktreeRemove(mainDir, target.Path); err != nil {
+	if err := git.WorktreeRemove(mainDir, target.Path, force); err != nil {
 		return err
 	}
 	if target.Branch != "" && target.Branch != git.DetachedBranch {
 		if err := git.BranchDelete(mainDir, target.Branch); err != nil {
-			fmt.Fprintf(w, "wt: WARNING could not delete branch %s: %v\n", target.Branch, err)
+			fmt.Fprintf(w, "wt: WARNING could not delete branch %s: %v\n     it still has unmerged commits; to delete it anyway: git branch -D %s\n", target.Branch, err, target.Branch)
 		}
 	}
 	if err := git.WorktreePrune(mainDir); err != nil {
@@ -199,6 +216,98 @@ func Remove(cfg config.Config, mainDir, name string, w io.Writer) error {
 
 	fmt.Fprintf(w, "wt: removed %s\n", name)
 	return nil
+}
+
+type reviewResult int
+
+const (
+	reviewClean reviewResult = iota
+	reviewForce
+	reviewCancel
+)
+
+// reviewUnsaved lists uncommitted changes and unpushed commits in target. If
+// there are none it returns reviewClean. Otherwise it shows a menu — show
+// details, open in the editor, force delete, cancel. "Show details" returns
+// to the menu; "Open in editor" opens the worktree and cancels, so the user
+// can clean up and rerun wt rm.
+func reviewUnsaved(cfg config.Config, target git.Worktree, name string, w io.Writer) (reviewResult, error) {
+	const (
+		optDetails = iota
+		optOpen
+		optForce
+		optCancel
+	)
+	labels := []string{
+		"Show details",
+		"Open in editor (cancels removal)",
+		"Force delete (discard changes)",
+		"Cancel",
+	}
+
+	status, err := git.StatusLines(target.Path)
+	if err != nil {
+		return reviewCancel, err
+	}
+	unpushed, err := git.UnpushedCommits(target.Path)
+	if err != nil {
+		return reviewCancel, err
+	}
+	if len(status) == 0 && len(unpushed) == 0 {
+		return reviewClean, nil
+	}
+
+	printUnsaved(w, name, status, unpushed)
+
+	for {
+		choice, err := picker.Choose("What now?", labels)
+		if err != nil {
+			return reviewCancel, err
+		}
+		switch choice {
+		case optDetails:
+			printDetails(w, target.Path, status, unpushed)
+		case optOpen:
+			if err := editor.Open(cfg.Editor, target.Path); err != nil {
+				return reviewCancel, err
+			}
+			return reviewCancel, nil
+		case optForce:
+			return reviewForce, nil
+		default:
+			return reviewCancel, nil
+		}
+	}
+}
+
+func printUnsaved(w io.Writer, name string, status, unpushed []string) {
+	fmt.Fprintf(w, "\nwt: %s has work that would be lost:\n", name)
+	if len(status) > 0 {
+		fmt.Fprintf(w, "  %d uncommitted file(s)\n", len(status))
+	}
+	if len(unpushed) > 0 {
+		fmt.Fprintf(w, "  %d commit(s) not on any remote\n", len(unpushed))
+	}
+	fmt.Fprintln(w)
+}
+
+func printDetails(w io.Writer, dir string, status, unpushed []string) {
+	if len(status) > 0 {
+		fmt.Fprintln(w, "\nUncommitted:")
+		for _, l := range status {
+			fmt.Fprintf(w, "  %s\n", l)
+		}
+		if stat, err := git.DiffStat(dir); err == nil && stat != "" {
+			fmt.Fprintf(w, "\n%s\n", stat)
+		}
+	}
+	if len(unpushed) > 0 {
+		fmt.Fprintln(w, "\nNot on any remote:")
+		for _, l := range unpushed {
+			fmt.Fprintf(w, "  %s\n", l)
+		}
+	}
+	fmt.Fprintln(w)
 }
 
 // Open opens the worktree named name in the configured editor — or, if name

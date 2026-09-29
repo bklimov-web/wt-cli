@@ -14,7 +14,8 @@ import (
 // SelectWorktree prompts the user to choose one of entries, showing each
 // one's branch as the label — with a "(main)" marker for the entry whose
 // path is mainDir, so callers that include the main checkout among entries
-// can still tell it apart. Returns an error if entries is empty.
+// can still tell it apart. Typing filters the list. Returns an error if
+// entries is empty.
 func SelectWorktree(action string, entries []git.Worktree, mainDir string) (git.Worktree, error) {
 	if len(entries) == 0 {
 		return git.Worktree{}, fmt.Errorf("no worktrees to %s", action)
@@ -32,6 +33,7 @@ func SelectWorktree(action string, entries []git.Worktree, mainDir string) (git.
 	var choice int
 	sel := huh.NewSelect[int]().
 		Title(fmt.Sprintf("Select a worktree to %s:", action)).
+		Filtering(true).
 		Options(options...).
 		Value(&choice)
 
@@ -54,4 +56,23 @@ func Confirm(title string) (bool, error) {
 		return false, err
 	}
 	return ok, nil
+}
+
+// Choose asks the user to pick one of labels and returns its index.
+func Choose(title string, labels []string) (int, error) {
+	options := make([]huh.Option[int], len(labels))
+	for i, l := range labels {
+		options[i] = huh.NewOption(l, i)
+	}
+
+	var choice int
+	sel := huh.NewSelect[int]().
+		Title(title).
+		Options(options...).
+		Value(&choice)
+
+	if err := sel.Run(); err != nil {
+		return 0, err
+	}
+	return choice, nil
 }

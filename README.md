@@ -79,7 +79,7 @@ go build -o wt ./cmd/wt
 | `wt init` | Scaffold a `.wt.toml` by detecting an install step (Go, Python, Java/Maven/Gradle, Rust, Ruby, PHP, .NET — when no JS lockfile) and gitignored local-config files (`.env*`, `*.local*`, `*secret*`) |
 | `wt new <name> [branch]` | Create a worktree branched off `origin/<default>`, copy env files, run the install step (auto-detected or from `install_commands`), open it in your editor |
 | `wt ls` | List worktrees (branch + path) |
-| `wt rm [name]` | Remove a worktree and its branch, with a confirmation prompt. Interactive picker if `name` is omitted |
+| `wt rm [name]` | Remove a worktree and its branch, with a confirmation prompt. If it has uncommitted files or commits not on any remote, they're listed first and you can show details, open it in your editor, force delete, or cancel. `-f`/`--force` skips the check. Interactive picker if `name` is omitted |
 | `wt open [name]` | Open a worktree in your configured editor. Interactive picker if `name` is omitted |
 | `wt path [name]` | Print a worktree's path. Interactive picker if `name` is omitted |
 

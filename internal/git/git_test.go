@@ -1,6 +1,7 @@
 package git
 
 import (
+	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
@@ -77,7 +78,7 @@ func TestWorktreeAddAndRemove_RoundTrip(t *testing.T) {
 		t.Fatalf("WorktreeList() = %+v, want an entry for %s/%s", entries, dir, branch)
 	}
 
-	if err := WorktreeRemove(mainDir, dir); err != nil {
+	if err := WorktreeRemove(mainDir, dir, false); err != nil {
 		t.Fatalf("WorktreeRemove() error = %v", err)
 	}
 	if err := BranchDelete(mainDir, branch); err != nil {
@@ -99,7 +100,7 @@ func TestWorktreeAddAndRemove_LeadingDashDir(t *testing.T) {
 	if err := WorktreeAdd(mainDir, dir, branch, "HEAD"); err != nil {
 		t.Fatalf("WorktreeAdd() error = %v", err)
 	}
-	if err := WorktreeRemove(mainDir, dir); err != nil {
+	if err := WorktreeRemove(mainDir, dir, false); err != nil {
 		t.Fatalf("WorktreeRemove() error = %v", err)
 	}
 }
@@ -128,5 +129,37 @@ func TestWorktreeList_DetachedHead(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("WorktreeList() = %+v, want an entry for %s", entries, dir)
+	}
+}
+
+func TestStatusAndUnpushed(t *testing.T) {
+	dir := initRepo(t)
+
+	status, err := StatusLines(dir)
+	if err != nil || len(status) != 0 {
+		t.Fatalf("clean repo: StatusLines() = %v, %v", status, err)
+	}
+
+	if err := os.WriteFile(filepath.Join(dir, "new.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	status, err = StatusLines(dir)
+	if err != nil || len(status) != 1 || status[0] != "?? new.txt" {
+		t.Fatalf("StatusLines() = %v, %v; want [?? new.txt]", status, err)
+	}
+
+	// No remotes at all: the init commit counts as unpushed.
+	unpushed, err := UnpushedCommits(dir)
+	if err != nil || len(unpushed) != 1 {
+		t.Fatalf("UnpushedCommits() = %v, %v; want 1 commit", unpushed, err)
+	}
+
+	// Once a remote-tracking ref covers HEAD, nothing is unpushed.
+	if out, err := exec.Command("git", "-C", dir, "update-ref", "refs/remotes/origin/main", "HEAD").CombinedOutput(); err != nil {
+		t.Fatalf("update-ref: %v\n%s", err, out)
+	}
+	unpushed, err = UnpushedCommits(dir)
+	if err != nil || len(unpushed) != 0 {
+		t.Fatalf("UnpushedCommits() = %v, %v; want none", unpushed, err)
 	}
 }

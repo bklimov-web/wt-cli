@@ -113,9 +113,14 @@ func WorktreeList(mainDir string) ([]Worktree, error) {
 	return entries, nil
 }
 
-// WorktreeRemove runs `git worktree remove <dir>` in mainDir.
-func WorktreeRemove(mainDir, dir string) error {
-	cmd := exec.Command("git", "-C", mainDir, "worktree", "remove", "--", dir)
+// WorktreeRemove runs `git worktree remove <dir>` in mainDir. With force it
+// also discards modified and untracked files.
+func WorktreeRemove(mainDir, dir string, force bool) error {
+	args := []string{"-C", mainDir, "worktree", "remove"}
+	if force {
+		args = append(args, "--force")
+	}
+	cmd := exec.Command("git", append(args, "--", dir)...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
@@ -154,4 +159,43 @@ func BranchDelete(mainDir, branch string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
+}
+
+// StatusLines returns the `git status --porcelain` lines for the checkout at
+// dir: one per modified or untracked path. Empty means a clean tree.
+func StatusLines(dir string) ([]string, error) {
+	out, err := exec.Command("git", "-C", dir, "status", "--porcelain").Output()
+	if err != nil {
+		return nil, fmt.Errorf("git status: %w", err)
+	}
+	return splitLines(string(out)), nil
+}
+
+// UnpushedCommits returns the one-line summaries of commits reachable from
+// HEAD in dir but from no remote-tracking branch — work that exists nowhere
+// else once the worktree's branch is deleted.
+func UnpushedCommits(dir string) ([]string, error) {
+	out, err := exec.Command("git", "-C", dir, "log", "--oneline", "HEAD", "--not", "--remotes").Output()
+	if err != nil {
+		return nil, fmt.Errorf("git log: %w", err)
+	}
+	return splitLines(string(out)), nil
+}
+
+// DiffStat returns `git diff HEAD --stat` for dir: a per-file summary of
+// tracked changes, staged and unstaged. Empty if there are none.
+func DiffStat(dir string) (string, error) {
+	out, err := exec.Command("git", "-C", dir, "diff", "HEAD", "--stat").Output()
+	if err != nil {
+		return "", fmt.Errorf("git diff: %w", err)
+	}
+	return strings.TrimRight(string(out), "\n"), nil
+}
+
+func splitLines(s string) []string {
+	s = strings.TrimRight(s, "\n")
+	if s == "" {
+		return nil
+	}
+	return strings.Split(s, "\n")
 }
