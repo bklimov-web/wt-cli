@@ -184,11 +184,11 @@ func Remove(cfg config.Config, mainDir, name string, force bool, w io.Writer) er
 		if err != nil {
 			return err
 		}
-		switch {
-		case dirty == reviewCancel:
+		switch dirty {
+		case reviewCancel:
 			fmt.Fprintln(w, "wt: aborted")
 			return nil
-		case dirty == reviewForce:
+		case reviewForce:
 			force = true
 		default: // reviewClean: nothing at risk, plain confirmation
 			ok, err := picker.Confirm(fmt.Sprintf("Remove worktree %q (branch %s)?", name, target.Branch))
