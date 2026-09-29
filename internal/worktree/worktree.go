@@ -180,6 +180,7 @@ func Remove(cfg config.Config, mainDir, name string, force bool, w io.Writer) er
 	}
 
 	if !force {
+		fmt.Fprintln(w, "wt: checking for unsaved work...")
 		dirty, err := reviewUnsaved(cfg, mainDir, target, name, w)
 		if err != nil {
 			return err
@@ -202,6 +203,7 @@ func Remove(cfg config.Config, mainDir, name string, force bool, w io.Writer) er
 		}
 	}
 
+	fmt.Fprintf(w, "wt: removing %s...\n", target.Path)
 	if err := git.WorktreeRemove(mainDir, target.Path, force); err != nil {
 		return err
 	}
