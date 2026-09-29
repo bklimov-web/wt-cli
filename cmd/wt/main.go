@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime/debug"
 
 	"github.com/urfave/cli/v3"
 
@@ -13,10 +14,28 @@ import (
 	"github.com/bklimov-web/wt-cli/internal/worktree"
 )
 
+// version is set at release time by goreleaser (-X main.version=...). For
+// other builds it stays "dev" and resolveVersion falls back to module info.
+var version = "dev"
+
+// resolveVersion returns the release version, or — for `go install
+// ...@vX.Y.Z` builds, which don't get the ldflag — the module version
+// recorded in the binary.
+func resolveVersion() string {
+	if version != "dev" {
+		return version
+	}
+	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return info.Main.Version
+	}
+	return version
+}
+
 func main() {
 	cmd := &cli.Command{
-		Name:  "wt",
-		Usage: "create git worktrees with local files and deps in place",
+		Name:    "wt",
+		Usage:   "create git worktrees with local files and deps in place",
+		Version: resolveVersion(),
 		Commands: []*cli.Command{
 			initCommand(),
 			newCommand(),

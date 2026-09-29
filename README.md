@@ -51,7 +51,7 @@ only pays for itself when the two states need to coexist.
 brew install bklimov-web/tap/wt
 ```
 
-Installs as `wt`, updates with `brew upgrade wt`.
+Installs as `wt`, updates with `brew upgrade wt`. Check the installed version with `wt --version`.
 
 ### Go
 
